@@ -11,7 +11,7 @@ from core.config import settings
 
 # Routers
 from api import auth_routes_adapted as auth_routes
-from api import client_routes, driver_routes, trip_routes
+from api import client_routes, driver_routes, trip_routes, additional_routes
 
 # Configurar logging
 logging.basicConfig(
@@ -61,6 +61,12 @@ app.include_router(
     trip_routes.router,
     prefix=f"{settings.API_V1_PREFIX}/trips",
     tags=["🚕 Viajes"]
+)
+
+app.include_router(
+    additional_routes.router,
+    prefix=f"{settings.API_V1_PREFIX}",
+    tags=["📊 Datos Generales"]
 )
 
 # Endpoints raíz
