@@ -47,27 +47,18 @@ async def get_available_vehicles():
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ==================== PAYMENTS ====================
-
-@router.get("/payments")
-async def get_payments():
-    """Obtener todos los pagos"""
+@router.get("/vehicles/driver/{driver_document}")
+async def get_driver_vehicles(driver_document: str):
+    """Obtener vehículos de un conductor específico"""
     try:
-        response = supabase.table("pay").select("*, trip(*), method(*)").execute()
-        return response.data
-    except Exception as e:
-        logger.error(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/payments/trip/{trip_id}")
-async def get_payment_by_trip(trip_id: int):
-    """Obtener pago de un viaje específico"""
-    try:
-        response = supabase.table("pay")\
-            .select("*, method(*)")\
-            .eq("trip_id", trip_id)\
+        response = supabase.table("driver_vehicle")\
+            .select("vehicle(*)")\
+            .eq("driver_document", driver_document)\
+            .eq("status", "A")\
             .execute()
-        return response.data[0] if response.data else None
+        # Extraer solo los datos del vehículo
+        vehicles = [item["vehicle"] for item in response.data if item.get("vehicle")]
+        return vehicles
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

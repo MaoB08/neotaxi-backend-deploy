@@ -96,6 +96,7 @@ async def create_trip(trip: TripRequest):
             "driver_document": trip.driver_document,
             "vehicle_plate": trip.vehicle_plate,
             "neighborhood_id": trip.neighborhood_id,
+            "start_time": datetime.now().isoformat(),  # Agregar hora de inicio
             "status": "N"  # N = En curso
         }
         
