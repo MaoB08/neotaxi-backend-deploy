@@ -9,9 +9,14 @@ import logging
 # Configuración
 from core.config import settings
 
+# Agregar este print aquí
+print(f"✅ SUPABASE_URL cargado: {settings.SUPABASE_URL[:30]}...")
+print(f"✅ SUPABASE_KEY cargado: {settings.SUPABASE_KEY[:20]}...")
+
 # Routers
 from api import auth_routes_adapted as auth_routes
 from api import client_routes, driver_routes, trip_routes, additional_routes
+from api.facial_routes import router as facial_router  # 🔥 Importar así
 
 # Configurar logging
 logging.basicConfig(
@@ -20,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Crear aplicación FastAPI
+# Crear aplicación FastAPI (ESTO ESTABA MAL - estaba después de include_router)
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
@@ -69,6 +74,13 @@ app.include_router(
     tags=["📊 Datos Generales"]
 )
 
+# 🔥 NUEVO: Router de reconocimiento facial
+app.include_router(
+    facial_router,  # 🔥 Usar la variable importada
+    prefix=f"{settings.API_V1_PREFIX}/facial",
+    tags=["🔐 Reconocimiento Facial"]
+)
+
 # Endpoints raíz
 @app.get("/")
 async def root():
@@ -82,7 +94,9 @@ async def root():
         "endpoints": {
             "auth": f"{settings.API_V1_PREFIX}/auth",
             "clients": f"{settings.API_V1_PREFIX}/clients",
-            "drivers": f"{settings.API_V1_PREFIX}/drivers"
+            "drivers": f"{settings.API_V1_PREFIX}/drivers",
+            "trips": f"{settings.API_V1_PREFIX}/trips",
+            "facial": f"{settings.API_V1_PREFIX}/facial"  # 🔥 NUEVO
         }
     }
 
@@ -115,6 +129,7 @@ async def startup_event():
     logger.info(f"🚀 {settings.PROJECT_NAME} iniciado")
     logger.info(f"📡 Supabase URL: {settings.SUPABASE_URL[:30]}...")
     logger.info(f"🔑 JWT configurado: ✅")
+    logger.info(f"🔐 Reconocimiento Facial: ✅")
     logger.info(f"📝 Documentación: http://localhost:8000/docs")
     logger.info("=" * 60)
 
