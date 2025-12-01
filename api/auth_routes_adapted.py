@@ -59,10 +59,12 @@ async def login(credentials: LoginRequest):
     Login para CLIENT o DRIVER
     """
     try:
+        # Normalizar email
+        credentials.email = credentials.email.lower().strip()
         logger.info(f"🔐 Intento de login: {credentials.email}")
         
-        # 1. Buscar en CLIENT
-        client_response = supabase.table("client").select("*").eq("email", credentials.email).execute()
+        # 1. Buscar en CLIENT (Case Insensitive)
+        client_response = supabase.table("client").select("*").ilike("email", credentials.email).execute()
         
         if client_response.data:
             client = client_response.data[0]
@@ -96,8 +98,8 @@ async def login(credentials: LoginRequest):
                 message="Bienvenido"
             )
         
-        # 2. Buscar en DRIVER
-        driver_response = supabase.table("driver").select("*").eq("email", credentials.email).execute()
+        # 2. Buscar en DRIVER (Case Insensitive)
+        driver_response = supabase.table("driver").select("*").ilike("email", credentials.email).execute()
         
         if driver_response.data:
             driver = driver_response.data[0]
@@ -167,30 +169,50 @@ async def register_client(data: RegisterClientRequest):
     Registrar nuevo cliente
     """
     try:
+        # Normalizar email
+        data.email = data.email.lower().strip()
         logger.info(f"📝 Registro de cliente: {data.email}")
         
-        # 1. Verificar si el email ya existe
-        existing = supabase.table("client").select("email").eq("email", data.email).execute()
-        if existing.data:
-            logger.warning(f"⚠️ Email ya registrado: {data.email}")
+        # 1. Verificar si el email ya existe en CLIENT (Case Insensitive)
+        existing_client = supabase.table("client").select("email").ilike("email", data.email).execute()
+        if existing_client.data:
+            logger.warning(f"⚠️ Email ya registrado en CLIENT: {data.email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El email ya está registrado"
             )
+
+        # 2. Verificar si el email ya existe en DRIVER (Case Insensitive)
+        existing_driver = supabase.table("driver").select("email").ilike("email", data.email).execute()
+        if existing_driver.data:
+            logger.warning(f"⚠️ Email ya registrado en DRIVER: {data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El email ya está asociado a una cuenta de conductor"
+            )
         
-        # 2. Verificar si el documento ya existe
-        existing_doc = supabase.table("client").select("document").eq("document", data.document).execute()
-        if existing_doc.data:
-            logger.warning(f"⚠️ Documento ya registrado: {data.document}")
+        # 3. Verificar si el documento ya existe en CLIENT
+        existing_doc_client = supabase.table("client").select("document").eq("document", data.document).execute()
+        if existing_doc_client.data:
+            logger.warning(f"⚠️ Documento ya registrado en CLIENT: {data.document}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El documento ya está registrado"
             )
+
+        # 4. Verificar si el documento ya existe en DRIVER
+        existing_doc_driver = supabase.table("driver").select("document").eq("document", data.document).execute()
+        if existing_doc_driver.data:
+            logger.warning(f"⚠️ Documento ya registrado en DRIVER: {data.document}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El documento ya está registrado como conductor"
+            )
         
-        # 3. Encriptar contraseña
+        # 5. Encriptar contraseña
         hashed_pwd = hash_password(data.password)
         
-        # 4. Insertar en CLIENT
+        # 6. Insertar en CLIENT
         client_data = {
             "document": data.document,
             "first_name": data.first_name,
@@ -226,30 +248,50 @@ async def register_driver(data: RegisterDriverRequest):
     Registrar nuevo conductor (estado PENDING 'P')
     """
     try:
+        # Normalizar email
+        data.email = data.email.lower().strip()
         logger.info(f"📝 Registro de conductor: {data.email}")
         
-        # 1. Verificar si el email ya existe
-        existing = supabase.table("driver").select("email").eq("email", data.email).execute()
-        if existing.data:
-            logger.warning(f"⚠️ Email ya registrado: {data.email}")
+        # 1. Verificar si el email ya existe en DRIVER (Case Insensitive)
+        existing_driver = supabase.table("driver").select("email").ilike("email", data.email).execute()
+        if existing_driver.data:
+            logger.warning(f"⚠️ Email ya registrado en DRIVER: {data.email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El email ya está registrado"
             )
+
+        # 2. Verificar si el email ya existe en CLIENT (Case Insensitive)
+        existing_client = supabase.table("client").select("email").ilike("email", data.email).execute()
+        if existing_client.data:
+            logger.warning(f"⚠️ Email ya registrado en CLIENT: {data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El email ya está asociado a una cuenta de cliente"
+            )
         
-        # 2. Verificar si el documento ya existe
-        existing_doc = supabase.table("driver").select("document").eq("document", data.document).execute()
-        if existing_doc.data:
-            logger.warning(f"⚠️ Documento ya registrado: {data.document}")
+        # 3. Verificar si el documento ya existe en DRIVER
+        existing_doc_driver = supabase.table("driver").select("document").eq("document", data.document).execute()
+        if existing_doc_driver.data:
+            logger.warning(f"⚠️ Documento ya registrado en DRIVER: {data.document}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El documento ya está registrado"
             )
+
+        # 4. Verificar si el documento ya existe en CLIENT
+        existing_doc_client = supabase.table("client").select("document").eq("document", data.document).execute()
+        if existing_doc_client.data:
+            logger.warning(f"⚠️ Documento ya registrado en CLIENT: {data.document}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El documento ya está asociado a una cuenta de cliente"
+            )
         
-        # 3. Encriptar contraseña
+        # 5. Encriptar contraseña
         hashed_pwd = hash_password(data.password)
         
-        # 4. Insertar en DRIVER con estado PENDING
+        # 6. Insertar en DRIVER con estado PENDING
         driver_data = {
             "document": data.document,
             "first_name": data.first_name,
@@ -308,5 +350,5 @@ async def health_check():
     return {
         "status": "ok",
         "service": "auth (adapted)",
-        "message": "Servicio de autenticación funcionando"
+        "message": "Servicio de autenticación funcionando correctamente"
     }
