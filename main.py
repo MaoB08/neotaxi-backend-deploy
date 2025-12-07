@@ -4,6 +4,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import logging
 
 # Configuración
@@ -82,8 +83,8 @@ app.include_router(
 )
 
 # Endpoints raíz
-@app.get("/")
-async def root():
+@app.get("/api")
+async def api_root():
     """Endpoint raíz de la API"""
     return {
         "message": "Bienvenido a NeoTaxi API",
@@ -131,12 +132,17 @@ async def startup_event():
     logger.info(f"🔑 JWT configurado: ✅")
     logger.info(f"🔐 Reconocimiento Facial: ✅")
     logger.info(f"📝 Documentación: http://localhost:8000/docs")
+    logger.info(f"👨‍💼 Panel Admin: http://localhost:8000/login.html")
     logger.info("=" * 60)
 
 # Evento de cierre
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("🛑 Servidor detenido")
+
+# Montar archivos estáticos para el panel de administración (al final para no interferir con las rutas de la API)
+app.mount("/admin", StaticFiles(directory="static/admin", html=True), name="admin")
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 # Ejecutar servidor
 if __name__ == "__main__":

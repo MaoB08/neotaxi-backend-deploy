@@ -68,14 +68,34 @@ async def update_driver(document: str, data: DriverUpdate):
 async def approve_driver(document: str, approval: DriverApproval):
     """Aprobar, rechazar o suspender un conductor"""
     try:
-        valid_statuses = ["APPROVED", "REJECTED", "SUSPENDED", "PENDING"]
+        # Mapa de estados para convertir a CHAR(1) compatible con la BD
+        status_map = {
+            "APPROVED": "A",
+            "REJECTED": "R",
+            "SUSPENDED": "S",
+            "PENDING": "P",
+            "ACTIVE": "A",   # Alias para APPROVED
+            "INACTIVE": "I", # Nuevo estado
+            "A": "A",
+            "R": "R",
+            "S": "S",
+            "P": "P",
+            "I": "I"
+        }
+        
+        # Validar si es un estado válido (largo o corto)
+        valid_statuses = list(status_map.keys()) + list(status_map.values())
+        
         if approval.status not in valid_statuses:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Estado inválido. Debe ser uno de: {', '.join(valid_statuses)}"
             )
         
-        response = supabase.table("driver").update({"status": approval.status}).eq("document", document).execute()
+        # Obtener el código corto para la base de datos
+        db_status = status_map.get(approval.status, approval.status)
+        
+        response = supabase.table("driver").update({"status": db_status}).eq("document", document).execute()
         
         if not response.data:
             raise HTTPException(
@@ -87,14 +107,21 @@ async def approve_driver(document: str, approval: DriverApproval):
             "APPROVED": "Conductor aprobado exitosamente",
             "REJECTED": "Conductor rechazado",
             "SUSPENDED": "Conductor suspendido",
-            "PENDING": "Conductor en estado pendiente"
+            "PENDING": "Conductor en estado pendiente",
+            "ACTIVE": "Conductor activado exitosamente",
+            "INACTIVE": "Conductor desactivado exitosamente",
+            "A": "Conductor aprobado exitosamente",
+            "R": "Conductor rechazado",
+            "S": "Conductor suspendido",
+            "P": "Conductor en estado pendiente",
+            "I": "Conductor desactivado (Inactivo)"
         }
         
-        logger.info(f"✅ Conductor {document} cambió a estado: {approval.status}")
+        logger.info(f"✅ Conductor {document} cambió a estado: {db_status}")
         
         return ApiResponse(
             success=True,
-            message=status_messages[approval.status]
+            message=status_messages.get(approval.status, "Estado actualizado correctamente")
         )
     except HTTPException:
         raise
@@ -105,8 +132,8 @@ async def approve_driver(document: str, approval: DriverApproval):
             detail=f"Error al actualizar estado: {str(e)}"
         )
 
-@router.get("/", response_model=list[DriverResponse])
-async def list_drivers(status_filter: str = None, limit: int = 100, offset: int = 0):
+@router.get("/")
+async def list_drivers(status_filter: str = None):
     """Listar conductores (opcionalmente filtrados por estado)"""
     try:
         query = supabase.table("driver").select("*")
@@ -114,7 +141,7 @@ async def list_drivers(status_filter: str = None, limit: int = 100, offset: int 
         if status_filter:
             query = query.eq("status", status_filter)
         
-        response = query.range(offset, offset + limit - 1).execute()
+        response = query.execute()
         return response.data
     except Exception as e:
         logger.error(f"Error al listar conductores: {str(e)}")

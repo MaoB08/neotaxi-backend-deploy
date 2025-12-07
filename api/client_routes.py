@@ -91,11 +91,11 @@ async def delete_client(document: str):
             detail=f"Error al eliminar cliente: {str(e)}"
         )
 
-@router.get("/", response_model=list[ClientResponse])
-async def list_clients(limit: int = 100, offset: int = 0):
+@router.get("/")
+async def list_clients():
     """Listar todos los clientes"""
     try:
-        response = supabase.table("client").select("*").range(offset, offset + limit - 1).execute()
+        response = supabase.table("client").select("*").execute()
         return response.data
     except Exception as e:
         logger.error(f"Error al listar clientes: {str(e)}")

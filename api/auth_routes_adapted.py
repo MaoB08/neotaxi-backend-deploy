@@ -21,7 +21,7 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     success: bool
     token: str
-    user_type: str  # "client" o "driver"
+    user_type: str  # "client", "driver" o "user"
     document: str
     email: str
     name: str
@@ -56,7 +56,7 @@ class RegisterResponse(BaseModel):
 @router.post("/login", response_model=LoginResponse)
 async def login(credentials: LoginRequest):
     """
-    Login para CLIENT o DRIVER
+    Login para CLIENT, DRIVER o USER (admin)
     """
     try:
         # Normalizar email
@@ -145,7 +145,28 @@ async def login(credentials: LoginRequest):
                 message="Bienvenido"
             )
         
-        # 3. No encontrado en ninguna tabla
+        # 3. Buscar en USER (admin) - Case Insensitive
+        user_response = supabase.table("user").select("*").ilike("email", credentials.email).execute()
+        
+        if user_response.data:
+            user = user_response.data[0]
+            
+            # Verificar contraseña
+            if not verify_password(credentials.password, user["password"]):
+                logger.warning(f"⚠️ Contraseña incorrecta (USER): {credentials.email}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Email o contraseña incorrectos"
+                )
+            
+            # ⚠️ IMPORTANTE: Los usuarios admin solo pueden acceder desde el panel web
+            logger.warning(f"⚠️ Intento de login de admin desde app móvil: {credentials.email}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Los administradores solo pueden acceder desde el panel web. Por favor, use http://localhost:8000/login.html"
+            )
+        
+        # 4. No encontrado en ninguna tabla
         logger.warning(f"⚠️ Usuario no encontrado: {credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -156,6 +177,78 @@ async def login(credentials: LoginRequest):
         raise
     except Exception as e:
         logger.error(f"❌ Error en login: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno del servidor: {str(e)}"
+        )
+
+# ==================== LOGIN ADMIN (PANEL WEB) ====================
+
+@router.post("/login-admin", response_model=LoginResponse)
+async def login_admin(credentials: LoginRequest):
+    """
+    Login exclusivo para administradores desde el panel web
+    """
+    try:
+        # Normalizar email
+        credentials.email = credentials.email.lower().strip()
+        logger.info(f"🔐 Intento de login ADMIN: {credentials.email}")
+        
+        # Buscar en USER (admin) - Case Insensitive
+        user_response = supabase.table("user").select("*").ilike("email", credentials.email).execute()
+        
+        if not user_response.data:
+            logger.warning(f"⚠️ Usuario admin no encontrado: {credentials.email}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email o contraseña incorrectos"
+            )
+        
+        user = user_response.data[0]
+        
+        # Verificar contraseña
+        if not verify_password(credentials.password, user["password"]):
+            logger.warning(f"⚠️ Contraseña incorrecta (ADMIN): {credentials.email}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email o contraseña incorrectos"
+            )
+        
+        # Para usuarios admin, usar email como identificador si no hay documento
+        user_document = user.get("document", user["email"])
+        
+        # Crear token
+        token_data = {
+            "document": user_document,
+            "email": user["email"],
+            "user_type": "user"
+        }
+        token = create_access_token(token_data)
+        
+        logger.info(f"✅ Login ADMIN exitoso: {user['email']}")
+        
+        # Para usuarios admin, construir nombre desde los campos disponibles
+        full_name = "Administrador"
+        if "first_name" in user and "last_name" in user:
+            full_name = f"{user['first_name']} {user['last_name']}"
+        elif "name" in user:
+            full_name = user["name"]
+        
+        return LoginResponse(
+            success=True,
+            token=token,
+            user_type="user",
+            document=user_document,
+            email=user["email"],
+            name=full_name,
+            phone=user.get("phone"),
+            message="Bienvenido Administrador"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error en login admin: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor: {str(e)}"
@@ -173,7 +266,16 @@ async def register_client(data: RegisterClientRequest):
         data.email = data.email.lower().strip()
         logger.info(f"📝 Registro de cliente: {data.email}")
         
-        # 1. Verificar si el email ya existe en CLIENT (Case Insensitive)
+        # 1. Verificar si el email ya existe en USER (Case Insensitive)
+        existing_user_email = supabase.table("user").select("email").ilike("email", data.email).execute()
+        if existing_user_email.data:
+            logger.warning(f"⚠️ Email ya registrado en USER: {data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El email ya está registrado en el sistema"
+            )
+        
+        # 2. Verificar si el email ya existe en CLIENT (Case Insensitive)
         existing_client = supabase.table("client").select("email").ilike("email", data.email).execute()
         if existing_client.data:
             logger.warning(f"⚠️ Email ya registrado en CLIENT: {data.email}")
@@ -182,7 +284,7 @@ async def register_client(data: RegisterClientRequest):
                 detail="El email ya está registrado"
             )
 
-        # 2. Verificar si el email ya existe en DRIVER (Case Insensitive)
+        # 3. Verificar si el email ya existe en DRIVER (Case Insensitive)
         existing_driver = supabase.table("driver").select("email").ilike("email", data.email).execute()
         if existing_driver.data:
             logger.warning(f"⚠️ Email ya registrado en DRIVER: {data.email}")
@@ -191,7 +293,7 @@ async def register_client(data: RegisterClientRequest):
                 detail="El email ya está asociado a una cuenta de conductor"
             )
         
-        # 3. Verificar si el documento ya existe en CLIENT
+        # 4. Verificar si el documento ya existe en CLIENT
         existing_doc_client = supabase.table("client").select("document").eq("document", data.document).execute()
         if existing_doc_client.data:
             logger.warning(f"⚠️ Documento ya registrado en CLIENT: {data.document}")
@@ -200,7 +302,7 @@ async def register_client(data: RegisterClientRequest):
                 detail="El documento ya está registrado"
             )
 
-        # 4. Verificar si el documento ya existe en DRIVER
+        # 5. Verificar si el documento ya existe en DRIVER
         existing_doc_driver = supabase.table("driver").select("document").eq("document", data.document).execute()
         if existing_doc_driver.data:
             logger.warning(f"⚠️ Documento ya registrado en DRIVER: {data.document}")
@@ -209,10 +311,10 @@ async def register_client(data: RegisterClientRequest):
                 detail="El documento ya está registrado como conductor"
             )
         
-        # 5. Encriptar contraseña
+        # 6. Encriptar contraseña
         hashed_pwd = hash_password(data.password)
         
-        # 6. Insertar en CLIENT
+        # 7. Insertar en CLIENT
         client_data = {
             "document": data.document,
             "first_name": data.first_name,
@@ -252,7 +354,16 @@ async def register_driver(data: RegisterDriverRequest):
         data.email = data.email.lower().strip()
         logger.info(f"📝 Registro de conductor: {data.email}")
         
-        # 1. Verificar si el email ya existe en DRIVER (Case Insensitive)
+        # 1. Verificar si el email ya existe en USER (Case Insensitive)
+        existing_user_email = supabase.table("user").select("email").ilike("email", data.email).execute()
+        if existing_user_email.data:
+            logger.warning(f"⚠️ Email ya registrado en USER: {data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El email ya está registrado en el sistema"
+            )
+        
+        # 2. Verificar si el email ya existe en DRIVER (Case Insensitive)
         existing_driver = supabase.table("driver").select("email").ilike("email", data.email).execute()
         if existing_driver.data:
             logger.warning(f"⚠️ Email ya registrado en DRIVER: {data.email}")
@@ -261,7 +372,7 @@ async def register_driver(data: RegisterDriverRequest):
                 detail="El email ya está registrado"
             )
 
-        # 2. Verificar si el email ya existe en CLIENT (Case Insensitive)
+        # 3. Verificar si el email ya existe en CLIENT (Case Insensitive)
         existing_client = supabase.table("client").select("email").ilike("email", data.email).execute()
         if existing_client.data:
             logger.warning(f"⚠️ Email ya registrado en CLIENT: {data.email}")
@@ -270,7 +381,7 @@ async def register_driver(data: RegisterDriverRequest):
                 detail="El email ya está asociado a una cuenta de cliente"
             )
         
-        # 3. Verificar si el documento ya existe en DRIVER
+        # 4. Verificar si el documento ya existe en DRIVER
         existing_doc_driver = supabase.table("driver").select("document").eq("document", data.document).execute()
         if existing_doc_driver.data:
             logger.warning(f"⚠️ Documento ya registrado en DRIVER: {data.document}")
@@ -279,7 +390,7 @@ async def register_driver(data: RegisterDriverRequest):
                 detail="El documento ya está registrado"
             )
 
-        # 4. Verificar si el documento ya existe en CLIENT
+        # 5. Verificar si el documento ya existe en CLIENT
         existing_doc_client = supabase.table("client").select("document").eq("document", data.document).execute()
         if existing_doc_client.data:
             logger.warning(f"⚠️ Documento ya registrado en CLIENT: {data.document}")
@@ -288,10 +399,10 @@ async def register_driver(data: RegisterDriverRequest):
                 detail="El documento ya está asociado a una cuenta de cliente"
             )
         
-        # 5. Encriptar contraseña
+        # 6. Encriptar contraseña
         hashed_pwd = hash_password(data.password)
         
-        # 6. Insertar en DRIVER con estado PENDING
+        # 7. Insertar en DRIVER con estado PENDING
         driver_data = {
             "document": data.document,
             "first_name": data.first_name,
