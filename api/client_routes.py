@@ -91,7 +91,7 @@ async def delete_client(document: str):
             detail=f"Error al eliminar cliente: {str(e)}"
         )
 
-@router.get("/")
+@router.get("")
 async def list_clients():
     """Listar todos los clientes"""
     try:

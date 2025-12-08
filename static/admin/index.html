@@ -49,12 +49,21 @@
                 </svg>
                 <span>Clientes</span>
             </a>
+
             <a href="#" class="nav-item" data-section="trips">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd"
                         d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" />
                 </svg>
                 <span>Viajes</span>
+            </a>
+            <a href="#" class="nav-item" data-section="alerts">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clip-rule="evenodd" />
+                </svg>
+                <span>Alertas</span>
             </a>
         </nav>
 
@@ -274,9 +283,46 @@
                 </table>
             </div>
         </section>
+
+        <!-- Alerts Section -->
+        <section id="alerts" class="content-section">
+            <div class="section-header">
+                <h2>Gestión de Alertas</h2>
+                <button class="btn-primary" id="refreshAlertsBtn">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" />
+                    </svg>
+                    Actualizar
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-column="alert_id">ID <span class="sort-icon"></span></th>
+                            <th class="sortable" data-column="user_document">Usuario <span class="sort-icon"></span>
+                            </th>
+                            <th class="sortable" data-column="alert_type">Tipo de antecedente <span
+                                    class="sort-icon"></span></th>
+                            <th class="sortable" data-column="description">Descripción <span class="sort-icon"></span>
+                            </th>
+                            <th class="sortable" data-column="level">Nivel <span class="sort-icon"></span></th>
+                            <th class="sortable" data-column="datetime">Fecha <span class="sort-icon"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsTableBody">
+                        <tr>
+                            <td colspan="6" class="loading">Cargando alertas...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2.3"></script>
 </body>
 
 </html>

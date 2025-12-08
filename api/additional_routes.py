@@ -142,8 +142,38 @@ async def get_incidents_by_trip(trip_id: int):
 async def get_alerts():
     """Obtener todas las alertas"""
     try:
-        response = supabase.table("alert").select("*").execute()
-        return response.data
+        # 1. Obtener alertas con antecedente
+        response = supabase.table("alert").select("*, antecedent(type(*))").order("datetime", desc=True).execute()
+        alerts = response.data
+
+        # 2. Obtener documentos de usuarios manualmente usando record_id
+        if alerts:
+            # Extraer IDs de registros faciales que no sean nulos
+            record_ids = [a['record_id'] for a in alerts if a.get('record_id')]
+            
+            if record_ids:
+                # Consultar biometric_record (usa IDs enteros) en lugar de facial_encodings (UUIDs)
+                try:
+                    # Consultar biometric_record usando record_id
+                    faces = supabase.table("biometric_record").select("record_id, client_document").in_("record_id", record_ids).execute()
+                    
+                    # Crear mapa id -> info
+                    face_map = {f['record_id']: f for f in faces.data}
+                    
+                    # Enriquecer alertas
+                    for alert in alerts:
+                        rid = alert.get('record_id')
+                        if rid and rid in face_map:
+                            # Mapear client_document a user_document para que el frontend lo entienda
+                            alert['facial_encodings'] = face_map[rid] 
+                            alert['user_document'] = face_map[rid].get('client_document')
+                            # Frontend espera user_type tambien para saber si es C o D
+                            if alert['user_document']:
+                                alert['facial_encodings']['user_type'] = 'client' 
+                except Exception as inner_e:
+                     logger.error(f"Error fetching biometric details: {inner_e}")
+
+        return alerts
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

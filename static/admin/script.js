@@ -69,6 +69,7 @@ function setupEventListeners() {
     document.getElementById('refreshDriversBtn')?.addEventListener('click', loadDrivers);
     document.getElementById('refreshClientsBtn')?.addEventListener('click', loadClients);
     document.getElementById('refreshTripsBtn')?.addEventListener('click', loadTrips);
+    document.getElementById('refreshAlertsBtn')?.addEventListener('click', loadAlerts);
 }
 
 // Navigate to section
@@ -90,7 +91,8 @@ function navigateToSection(section) {
         dashboard: 'Dashboard',
         drivers: 'Gestión de Conductores',
         clients: 'Gestión de Clientes',
-        trips: 'Gestión de Viajes'
+        trips: 'Gestión de Viajes',
+        alerts: 'Gestión de Alertas'
     };
     document.getElementById('pageTitle').textContent = titles[section] || 'Dashboard';
 
@@ -104,6 +106,9 @@ function navigateToSection(section) {
             break;
         case 'trips':
             loadTrips();
+            break;
+        case 'alerts':
+            loadAlerts();
             break;
     }
 }
@@ -159,9 +164,9 @@ async function loadDashboardData() {
     let driversData = [], clientsData = [], tripsData = [];
 
     // Cargar datos individualmente para evitar fallos en cascada
-    try { driversData = await apiRequest('/drivers/'); } catch (e) { console.error('Error loading drivers for dashboard:', e); }
-    try { clientsData = await apiRequest('/clients/'); } catch (e) { console.error('Error loading clients for dashboard:', e); }
-    try { tripsData = await apiRequest('/trips/'); } catch (e) { console.error('Error loading trips for dashboard:', e); }
+    try { driversData = await apiRequest('/drivers'); } catch (e) { console.error('Error loading drivers for dashboard:', e); }
+    try { clientsData = await apiRequest('/clients'); } catch (e) { console.error('Error loading clients for dashboard:', e); }
+    try { tripsData = await apiRequest('/trips'); } catch (e) { console.error('Error loading trips for dashboard:', e); }
 
     try {
         // ===== CONDUCTORES =====
@@ -193,7 +198,10 @@ async function loadDashboardData() {
 
         // ===== VIAJES DE HOY =====
         const now = new Date();
-        const today = now.toISOString().split('T')[0];
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`;
         const todayTrips = tripsData ? tripsData.filter(t => t.start_time?.startsWith(today)) : [];
         document.getElementById('todayTrips').textContent = todayTrips.length;
 
@@ -334,7 +342,7 @@ async function loadDrivers() {
     tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando conductores...</td></tr>';
 
     try {
-        const drivers = await apiRequest('/drivers/');
+        const drivers = await apiRequest('/drivers');
 
         // Store data globally for sorting
         driversData = drivers;
@@ -355,7 +363,7 @@ async function loadClients() {
     tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando clientes...</td></tr>';
 
     try {
-        const clients = await apiRequest('/clients/');
+        const clients = await apiRequest('/clients');
 
         // Store data globally for sorting
         clientsData = clients;
@@ -376,7 +384,7 @@ async function loadTrips() {
     tbody.innerHTML = '<tr><td colspan="7" class="loading">Cargando viajes...</td></tr>';
 
     try {
-        const trips = await apiRequest('/trips/');
+        const trips = await apiRequest('/trips');
 
         // Store data globally for sorting
         tripsData = trips;
@@ -497,6 +505,7 @@ function showNotification(message, type = 'info') {
 let driversData = [];
 let clientsData = [];
 let tripsData = [];
+let alertsData = [];
 
 // Setup sorting for all tables
 function setupTableSorting() {
@@ -504,6 +513,7 @@ function setupTableSorting() {
     setupSortingForTable('driversTableBody', 'drivers');
     setupSortingForTable('clientsTableBody', 'clients');
     setupSortingForTable('tripsTableBody', 'trips');
+    setupSortingForTable('alertsTableBody', 'alerts');
 }
 
 function setupSortingForTable(tableBodyId, dataType) {
@@ -554,6 +564,10 @@ function sortTable(dataType, column, direction) {
         case 'trips':
             data = [...tripsData];
             renderFunction = renderTripsTable;
+            break;
+        case 'alerts':
+            data = [...alertsData];
+            renderFunction = renderAlertsTable;
             break;
         default:
             return;
@@ -764,3 +778,111 @@ window.viewClient = viewClient;
 window.endTrip = endTrip;
 window.deleteTrip = deleteTrip;
 window.toggleDriverStatus = toggleDriverStatus;
+
+// Load Alerts
+async function loadAlerts() {
+    const tbody = document.getElementById('alertsTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando alertas...</td></tr>';
+
+    try {
+        // Ensure we have reference data for resolving names
+        const promises = [apiRequest('/alerts')];
+
+        if (clientsData.length === 0) {
+            promises.push(apiRequest('/clients').then(data => { clientsData = data; return data; }));
+        }
+
+        if (driversData.length === 0) {
+            promises.push(apiRequest('/drivers').then(data => { driversData = data; return data; }));
+        }
+
+        const results = await Promise.all(promises);
+        const alerts = results[0];
+
+        // Store data globally for sorting
+        alertsData = alerts;
+
+        renderAlertsTable(alerts);
+    } catch (error) {
+        console.error('Error loading alerts:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Error al cargar alertas</td></tr>';
+        showNotification('Error al cargar alertas', 'error');
+    }
+}
+
+// Render Alerts Table
+function renderAlertsTable(alerts) {
+    const tbody = document.getElementById('alertsTableBody');
+
+    if (alerts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">No hay alertas registradas</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = alerts.map(alert => {
+        // Resolve User Name
+        let userName = 'No registrado';
+        let userDoc = alert.facial_encodings?.user_document || alert.user_document || 'N/A';
+
+        if (alert.facial_encodings) {
+            // Fix: biometric_record uses 'client_document', not 'user_document'
+            // We use the property that actually exists
+            const doc = alert.facial_encodings.client_document || alert.facial_encodings.user_document;
+            const type = alert.facial_encodings.user_type || 'client';
+
+            if (doc) {
+                if (type === 'client' || type === 'CLIENT') {
+                    const client = clientsData.find(c => c.document === doc);
+                    if (client) userName = `${client.first_name} ${client.last_name}`;
+                } else {
+                    const driver = driversData.find(d => d.document === doc);
+                    if (driver) userName = `${driver.first_name} ${driver.last_name}`;
+                }
+            }
+        } else if (alert.user_document) {
+            // Fallback if direct user_document exists (legacy or direct alert)
+            const client = clientsData.find(c => c.document === alert.user_document);
+            const driver = driversData.find(d => d.document === alert.user_document);
+            if (client) userName = `${client.first_name} ${client.last_name} (C)`;
+            else if (driver) userName = `${driver.first_name} ${driver.last_name} (D)`;
+        }
+
+        // Resolve Alert Type
+        let alertType = 'No registrado';
+        if (alert.antecedent?.type?.name) {
+            alertType = alert.antecedent.type.name;
+        } else if (alert.alert_type) {
+            alertType = alert.alert_type; // Fallback if exists directly
+        }
+
+        return `
+        <tr>
+            <td>${alert.alert_id || alert.id || 'N/A'}</td>
+            <td>${userDoc}</td>
+            <td>${alertType}</td>
+            <td>${alert.description || 'N/A'}</td>
+            <td>${getAlertLevelBadge(alert.level)}</td>
+            <td>${formatDate(alert.datetime)}</td>
+        </tr>
+        `;
+    }).join('');
+}
+
+// Get Alert Level Badge
+function getAlertLevelBadge(level) {
+    const levelInt = parseInt(level);
+
+    // Scale 1-5
+    if (levelInt === 1) return `<span class="status-badge success">Baja (1)</span>`;
+    if (levelInt === 2) return `<span class="status-badge success" style="background-color: #86efac; color: #14532d;">Leve (2)</span>`; // Light Green
+    if (levelInt === 3) return `<span class="status-badge pending">Media (3)</span>`;
+    if (levelInt === 4) return `<span class="status-badge warning" style="background-color: #fdba74; color: #7c2d12;">Alta (4)</span>`; // Orange
+    if (levelInt === 5) return `<span class="status-badge inactive">Crítica (5)</span>`;
+
+    // Fallback for legacy data
+    if (String(level).toLowerCase() === 'high') return `<span class="status-badge inactive">Alta</span>`;
+    if (String(level).toLowerCase() === 'medium') return `<span class="status-badge pending">Media</span>`;
+    if (String(level).toLowerCase() === 'low') return `<span class="status-badge success">Baja</span>`;
+
+    return `<span class="status-badge pending">Nivel ${level}</span>`;
+}

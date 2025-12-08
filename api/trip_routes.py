@@ -36,12 +36,12 @@ class ActiveTrip(BaseModel):
 
 # ==================== ENDPOINTS ====================
 
-@router.get("/")
+@router.get("")
 async def get_all_trips():
     """Obtener todos los viajes con nombres de barrios"""
     try:
         # Obtener todos los viajes
-        trips_response = supabase.table("trip").select("*").execute()
+        trips_response = supabase.table("trip").select("*").order("trip_id", desc=True).execute()
         
         if not trips_response.data:
             return []
@@ -91,7 +91,7 @@ async def get_all_trips():
 async def get_trips_by_client(client_document: str):
     """Obtener viajes de un cliente"""
     try:
-        response = supabase.table("trip").select("*").eq("client_document", client_document).execute()
+        response = supabase.table("trip").select("*").eq("client_document", client_document).order("trip_id", desc=True).execute()
         return response.data
     except Exception as e:
         logger.error(f"Error al obtener viajes del cliente: {str(e)}")
@@ -105,7 +105,7 @@ async def get_trips_by_driver(driver_document: str):
     """Obtener viajes de un conductor con nombres de barrios"""
     try:
         # Obtener viajes del conductor
-        trips_response = supabase.table("trip").select("*").eq("driver_document", driver_document).execute()
+        trips_response = supabase.table("trip").select("*").eq("driver_document", driver_document).order("trip_id", desc=True).execute()
         
         if not trips_response.data:
             return []
@@ -160,7 +160,7 @@ async def get_active_trips():
             detail=f"Error: {str(e)}"
         )
 
-@router.post("/", response_model=TripResponse)
+@router.post("", response_model=TripResponse)
 async def create_trip(trip: TripRequest):
     """Crear nuevo viaje con origen y destino"""
     try:

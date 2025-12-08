@@ -132,7 +132,7 @@ async def approve_driver(document: str, approval: DriverApproval):
             detail=f"Error al actualizar estado: {str(e)}"
         )
 
-@router.get("/")
+@router.get("")
 async def list_drivers(status_filter: str = None):
     """Listar conductores (opcionalmente filtrados por estado)"""
     try:
