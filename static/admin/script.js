@@ -238,7 +238,7 @@ async function loadDashboardData() {
         }
 
         // ===== ACTIVIDAD RECIENTE =====
-        loadRecentActivity(driversData || [], clientsData || [], tripsData || []);
+        await loadRecentActivity(driversData || [], clientsData || [], tripsData || []);
 
     } catch (error) {
         console.error('Error processing dashboard data:', error);
@@ -247,13 +247,65 @@ async function loadDashboardData() {
 }
 
 // Load Recent Activity
-function loadRecentActivity(drivers, clients, trips) {
+async function loadRecentActivity(drivers, clients, trips) {
     const activityList = document.getElementById('activityList');
     const activities = [];
 
+    // Cargar alertas recientes
+    let alerts = [];
+    try {
+        alerts = await apiRequest('/alerts');
+    } catch (e) {
+        console.error('Error loading alerts for dashboard:', e);
+    }
+
+    // Alertas recientes (últimas 24 horas, nivel alto)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentAlerts = alerts
+        .filter(a => {
+            const alertDate = new Date(a.datetime);
+            return alertDate > oneDayAgo && a.level >= 4; // Solo nivel 4 y 5
+        })
+        .sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
+        .slice(0, 2);
+
+    recentAlerts.forEach(alert => {
+        const levelText = alert.level === 5 ? 'Crítica' : 'Alta';
+        activities.push({
+            icon: '🚨',
+            title: `Alerta ${levelText}: ${alert.description || 'Sin descripción'}`,
+            time: formatTimeAgo(alert.datetime),
+            type: 'warning'
+        });
+    });
+
+    // Clientes nuevos (últimos 7 días)
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const newClients = clients
+        .filter(c => {
+            // Asumimos que tienen un campo created_at o registration_date
+            // Si no existe, los mostramos todos como "nuevos"
+            if (c.created_at) {
+                const clientDate = new Date(c.created_at);
+                return clientDate > oneWeekAgo;
+            }
+            return false; // Si no hay fecha, no lo mostramos como nuevo
+        })
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        .slice(0, 2);
+
+    newClients.forEach(client => {
+        activities.push({
+            icon: '👥',
+            title: `Nuevo cliente: ${client.first_name} ${client.last_name}`,
+            time: formatTimeAgo(client.created_at),
+            type: 'success'
+        });
+    });
+
     // Conductores pendientes
     const pendingDrivers = drivers.filter(d => d.status === 'P' || d.status === 'PENDING');
-    pendingDrivers.slice(0, 3).forEach(driver => {
+    pendingDrivers.slice(0, 2).forEach(driver => {
         activities.push({
             icon: '👤',
             title: `Conductor pendiente: ${driver.first_name} ${driver.last_name}`,
@@ -264,7 +316,7 @@ function loadRecentActivity(drivers, clients, trips) {
 
     // Viajes activos
     const activeTrips = trips.filter(t => t.status === 'N' || t.status === 'ACTIVE');
-    activeTrips.slice(0, 3).forEach(trip => {
+    activeTrips.slice(0, 2).forEach(trip => {
         activities.push({
             icon: '🚗',
             title: `Viaje en curso: ${trip.origin_neighborhood || 'Origen'} → ${trip.destination_neighborhood || 'Destino'}`,
@@ -302,8 +354,16 @@ function loadRecentActivity(drivers, clients, trips) {
         return;
     }
 
-    // Renderizar actividades (máximo 5)
-    activityList.innerHTML = activities.slice(0, 5).map(activity => `
+    // Ordenar por prioridad: alertas críticas primero, luego por tiempo
+    activities.sort((a, b) => {
+        // Alertas críticas primero
+        if (a.type === 'warning' && a.icon === '🚨' && b.type !== 'warning') return -1;
+        if (b.type === 'warning' && b.icon === '🚨' && a.type !== 'warning') return 1;
+        return 0;
+    });
+
+    // Renderizar actividades (máximo 8)
+    activityList.innerHTML = activities.slice(0, 8).map(activity => `
         <div class="activity-item ${activity.type || ''}">
             <div class="activity-icon">${activity.icon}</div>
             <div class="activity-content">
@@ -782,7 +842,7 @@ window.toggleDriverStatus = toggleDriverStatus;
 // Load Alerts
 async function loadAlerts() {
     const tbody = document.getElementById('alertsTableBody');
-    tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando alertas...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="loading">Cargando alertas...</td></tr>';
 
     try {
         // Ensure we have reference data for resolving names
@@ -805,7 +865,7 @@ async function loadAlerts() {
         renderAlertsTable(alerts);
     } catch (error) {
         console.error('Error loading alerts:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Error al cargar alertas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">Error al cargar alertas</td></tr>';
         showNotification('Error al cargar alertas', 'error');
     }
 }
@@ -815,11 +875,15 @@ function renderAlertsTable(alerts) {
     const tbody = document.getElementById('alertsTableBody');
 
     if (alerts.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">No hay alertas registradas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">No hay alertas registradas</td></tr>';
         return;
     }
 
     tbody.innerHTML = alerts.map(alert => {
+        // Log para debugging
+        console.log('Alert data:', alert);
+        console.log('Trip ID:', alert.trip_id);
+
         // Resolve User Name
         let userName = 'No registrado';
         let userDoc = alert.facial_encodings?.user_document || alert.user_document || 'N/A';
@@ -858,6 +922,7 @@ function renderAlertsTable(alerts) {
         return `
         <tr>
             <td>${alert.alert_id || alert.id || 'N/A'}</td>
+            <td>${alert.trip_id || 'N/A'}</td>
             <td>${userDoc}</td>
             <td>${alertType}</td>
             <td>${alert.description || 'N/A'}</td>

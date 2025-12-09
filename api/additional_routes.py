@@ -142,8 +142,8 @@ async def get_incidents_by_trip(trip_id: int):
 async def get_alerts():
     """Obtener todas las alertas"""
     try:
-        # 1. Obtener alertas con antecedente
-        response = supabase.table("alert").select("*, antecedent(type(*))").order("datetime", desc=True).execute()
+        # 1. Obtener alertas con antecedente (incluir trip_id explícitamente)
+        response = supabase.table("alert").select("alert_id, level, description, datetime, trip_id, record_id, antecedent_id, antecedent(type(*))").order("datetime", desc=True).execute()
         alerts = response.data
 
         # 2. Obtener documentos de usuarios manualmente usando record_id
@@ -173,6 +173,11 @@ async def get_alerts():
                 except Exception as inner_e:
                      logger.error(f"Error fetching biometric details: {inner_e}")
 
+        # Log para debugging
+        if alerts:
+            logger.info(f"📊 Devolviendo {len(alerts)} alertas")
+            logger.info(f"Primera alerta de ejemplo: {alerts[0]}")
+        
         return alerts
     except Exception as e:
         logger.error(f"Error: {str(e)}")
@@ -191,6 +196,92 @@ async def get_alerts_by_level(level: int):
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class AlertCreate(BaseModel):
+    level: int
+    description: str
+    trip_id: int  # ID del viaje activo
+
+@router.post("/alerts")
+async def create_alert(alert: AlertCreate):
+    """Crear nueva alerta (desde conductor)"""
+    try:
+        # Validar nivel (1-5)
+        if alert.level < 1 or alert.level > 5:
+            raise HTTPException(status_code=400, detail="El nivel debe estar entre 1 y 5")
+        
+        # 1. Obtener información del viaje
+        trip_response = supabase.table("trip").select("client_document").eq("trip_id", alert.trip_id).execute()
+        
+        if not trip_response.data:
+            raise HTTPException(status_code=404, detail="Viaje no encontrado")
+        
+        client_document = trip_response.data[0]["client_document"]
+        logger.info(f"📋 Alerta para viaje #{alert.trip_id}, cliente: {client_document}")
+        
+        # 2. Obtener el record_id más reciente del cliente (biometric_record)
+        record_id = None
+        try:
+            biometric_response = supabase.table("biometric_record")\
+                .select("record_id")\
+                .eq("client_document", client_document)\
+                .order("datetime", desc=True)\
+                .limit(1)\
+                .execute()
+            
+            if biometric_response.data:
+                record_id = biometric_response.data[0]["record_id"]
+                logger.info(f"🔍 Record ID encontrado: {record_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo obtener record_id: {str(e)}")
+        
+        # 3. Obtener el antecedent_id más reciente del cliente (si tiene)
+        antecedent_id = None
+        try:
+            antecedent_response = supabase.table("antecedent")\
+                .select("antecedent_id")\
+                .eq("client_document", client_document)\
+                .order("record_date", desc=True)\
+                .limit(1)\
+                .execute()
+            
+            if antecedent_response.data:
+                antecedent_id = antecedent_response.data[0]["antecedent_id"]
+                logger.info(f"⚠️ Antecedent ID encontrado: {antecedent_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo obtener antecedent_id: {str(e)}")
+        
+        # 4. Insertar alerta con los datos obtenidos
+        alert_data = {
+            "level": alert.level,
+            "description": alert.description,
+            "trip_id": alert.trip_id,  # ✨ Guardar ID del viaje
+            "record_id": record_id,
+            "antecedent_id": antecedent_id
+            # datetime se genera automáticamente en la BD
+        }
+        
+        response = supabase.table("alert").insert(alert_data).execute()
+        
+        if response.data:
+            logger.info(f"✅ Alerta creada: ID={response.data[0].get('alert_id')}, trip_id={alert.trip_id}, level={alert.level}, record_id={record_id}, antecedent_id={antecedent_id}")
+            return {
+                "success": True,
+                "message": "Alerta creada exitosamente",
+                "data": response.data[0]
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Error al crear alerta")
+
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error al crear alerta: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
 # ==================== ANTECEDENTS ====================
 

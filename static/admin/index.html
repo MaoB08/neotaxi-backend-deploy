@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NeoTaxi - Panel de Administración</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="search-styles.css">
 </head>
 
 <body>
@@ -103,6 +104,17 @@
 
         <!-- Dashboard Section -->
         <section id="dashboard" class="content-section active">
+            <div class="section-header">
+                <h2>Resumen General</h2>
+                <button class="btn-primary" id="refreshDashboardBtn">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" />
+                    </svg>
+                    Actualizar
+                </button>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -181,6 +193,9 @@
         <section id="drivers" class="content-section">
             <div class="section-header">
                 <h2>Gestión de Conductores</h2>
+                <div class="search-container">
+                    <input type="text" id="searchDrivers" class="search-input" placeholder="🔍 Buscar conductor...">
+                </div>
                 <button class="btn-primary" id="refreshDriversBtn">
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd"
@@ -215,6 +230,9 @@
         <section id="clients" class="content-section">
             <div class="section-header">
                 <h2>Gestión de Clientes</h2>
+                <div class="search-container">
+                    <input type="text" id="searchClients" class="search-input" placeholder="🔍 Buscar cliente...">
+                </div>
                 <button class="btn-primary" id="refreshClientsBtn">
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd"
@@ -248,6 +266,9 @@
         <section id="trips" class="content-section">
             <div class="section-header">
                 <h2>Gestión de Viajes</h2>
+                <div class="search-container">
+                    <input type="text" id="searchTrips" class="search-input" placeholder="🔍 Buscar viaje...">
+                </div>
                 <button class="btn-primary" id="refreshTripsBtn">
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd"
@@ -288,6 +309,9 @@
         <section id="alerts" class="content-section">
             <div class="section-header">
                 <h2>Gestión de Alertas</h2>
+                <div class="search-container">
+                    <input type="text" id="searchAlerts" class="search-input" placeholder="🔍 Buscar alerta...">
+                </div>
                 <button class="btn-primary" id="refreshAlertsBtn">
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd"
@@ -302,6 +326,7 @@
                     <thead>
                         <tr>
                             <th class="sortable" data-column="alert_id">ID <span class="sort-icon"></span></th>
+                            <th class="sortable" data-column="trip_id">Viaje <span class="sort-icon"></span></th>
                             <th class="sortable" data-column="user_document">Usuario <span class="sort-icon"></span>
                             </th>
                             <th class="sortable" data-column="alert_type">Tipo de antecedente <span
@@ -314,7 +339,7 @@
                     </thead>
                     <tbody id="alertsTableBody">
                         <tr>
-                            <td colspan="6" class="loading">Cargando alertas...</td>
+                            <td colspan="7" class="loading">Cargando alertas...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -322,7 +347,8 @@
         </section>
     </main>
 
-    <script src="script.js?v=2.3"></script>
+    <script src="script.js?v=2.6"></script>
+    <script src="search-functionality.js"></script>
 </body>
 
 </html>

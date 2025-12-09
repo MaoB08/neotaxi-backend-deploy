@@ -382,6 +382,8 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .section-header h2 {
