@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from core.database import supabase
 from typing import Optional, List
+from datetime import datetime
 import logging
 
 router = APIRouter()
@@ -308,6 +309,61 @@ async def get_antecedents_by_client(document: str):
         return response.data
     except Exception as e:
         logger.error(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/types")
+async def get_antecedent_types():
+    """Obtener tipos de antecedentes"""
+    try:
+        response = supabase.table("type").select("*").execute()
+        return response.data
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class AntecedentCreate(BaseModel):
+    description: str
+    status: str
+    type_id: int
+    client_document: str
+
+@router.post("/antecedents")
+async def create_antecedent(antecedent: AntecedentCreate):
+    """Crear nuevo antecedente"""
+    try:
+        # 1. Validar que el cliente exista
+        client_check = supabase.table("client").select("document").eq("document", antecedent.client_document).execute()
+        if not client_check.data:
+            # Validar también en conductores por si acaso, aunque el modelo dice client_document
+            driver_check = supabase.table("driver").select("document").eq("document", antecedent.client_document).execute()
+            if not driver_check.data:
+                 raise HTTPException(status_code=400, detail=f"No se encontró cliente con documento {antecedent.client_document}")
+
+        # 2. Validar estatus
+        status_val = "A" if antecedent.status == "Activo" else "C" if antecedent.status == "Completado" else antecedent.status
+        if status_val not in ["A", "C"]:
+             raise HTTPException(status_code=400, detail="El estado debe ser 'Activo' o 'Completado'")
+
+        # 3. Insertar
+        antecedent_data = {
+            "description": antecedent.description,
+            "status": status_val,
+            "type_id": antecedent.type_id,
+            "client_document": antecedent.client_document,
+            "record_date": datetime.now().isoformat()
+        }
+        
+        response = supabase.table("antecedent").insert(antecedent_data).execute()
+        
+        if response.data:
+             return {"success": True, "data": response.data[0]}
+        else:
+             raise HTTPException(status_code=500, detail="Error al insertar antecedente")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creando antecedente: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==================== BIOMETRIC ====================

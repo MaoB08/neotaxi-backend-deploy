@@ -70,6 +70,12 @@ function setupEventListeners() {
     document.getElementById('refreshClientsBtn')?.addEventListener('click', loadClients);
     document.getElementById('refreshTripsBtn')?.addEventListener('click', loadTrips);
     document.getElementById('refreshAlertsBtn')?.addEventListener('click', loadAlerts);
+    document.getElementById('refreshTripsBtn')?.addEventListener('click', loadTrips);
+    document.getElementById('refreshAlertsBtn')?.addEventListener('click', loadAlerts);
+    document.getElementById('refreshAntecedentsBtn')?.addEventListener('click', loadAntecedents);
+
+    // Modal Events
+    setupModalEvents();
 }
 
 // Navigate to section
@@ -86,13 +92,19 @@ function navigateToSection(section) {
     });
     document.getElementById(section).classList.add('active');
 
+    // Clear search inputs
+    document.querySelectorAll('.search-input').forEach(input => {
+        input.value = '';
+    });
+
     // Update page title
     const titles = {
         dashboard: 'Dashboard',
         drivers: 'Gestión de Conductores',
         clients: 'Gestión de Clientes',
         trips: 'Gestión de Viajes',
-        alerts: 'Gestión de Alertas'
+        alerts: 'Gestión de Alertas',
+        antecedents: 'Gestión de Antecedentes'
     };
     document.getElementById('pageTitle').textContent = titles[section] || 'Dashboard';
 
@@ -109,6 +121,9 @@ function navigateToSection(section) {
             break;
         case 'alerts':
             loadAlerts();
+            break;
+        case 'antecedents':
+            loadAntecedents();
             break;
     }
 }
@@ -441,7 +456,7 @@ async function loadClients() {
 // Load Trips
 async function loadTrips() {
     const tbody = document.getElementById('tripsTableBody');
-    tbody.innerHTML = '<tr><td colspan="7" class="loading">Cargando viajes...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="loading">Cargando viajes...</td></tr>';
 
     try {
         const trips = await apiRequest('/trips');
@@ -566,6 +581,7 @@ let driversData = [];
 let clientsData = [];
 let tripsData = [];
 let alertsData = [];
+let antecedentsData = [];
 
 // Setup sorting for all tables
 function setupTableSorting() {
@@ -574,6 +590,7 @@ function setupTableSorting() {
     setupSortingForTable('clientsTableBody', 'clients');
     setupSortingForTable('tripsTableBody', 'trips');
     setupSortingForTable('alertsTableBody', 'alerts');
+    setupSortingForTable('antecedentsTableBody', 'antecedents');
 }
 
 function setupSortingForTable(tableBodyId, dataType) {
@@ -628,6 +645,10 @@ function sortTable(dataType, column, direction) {
         case 'alerts':
             data = [...alertsData];
             renderFunction = renderAlertsTable;
+            break;
+        case 'antecedents':
+            data = [...antecedentsData];
+            renderFunction = renderAntecedentsTable;
             break;
         default:
             return;
@@ -753,6 +774,7 @@ function renderTripsTable(trips) {
         <td>${trip.origin_neighborhood || 'N/A'}</td>
         <td>${trip.destination_neighborhood || 'N/A'}</td>
         <td>${getTripStatusBadge(trip.status)}</td>
+        <td>${trip.rating !== undefined && trip.rating !== null ? trip.rating + '/5' : 'N/A'}</td>
         <td>${formatDate(trip.start_time)}</td>
         <td>
             <div class="action-btns">
@@ -950,4 +972,172 @@ function getAlertLevelBadge(level) {
     if (String(level).toLowerCase() === 'low') return `<span class="status-badge success">Baja</span>`;
 
     return `<span class="status-badge pending">Nivel ${level}</span>`;
+}
+
+// Load Antecedents
+async function loadAntecedents() {
+    const tbody = document.getElementById('antecedentsTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">Cargando antecedentes...</td></tr>';
+
+    try {
+        const antecedents = await apiRequest('/antecedents');
+        // Pre-process data to flatten it for easier searching and rendering
+        antecedentsData = antecedents.map(item => {
+            const clientName = item.client
+                ? `${item.client.first_name} ${item.client.last_name}`
+                : (item.client_document || 'N/A');
+            const typeName = item.type ? item.type.name : 'Desconocido';
+
+            return {
+                ...item,
+                // Add flat fields for search
+                client_name_search: clientName,
+                type_name_search: typeName
+            };
+        });
+        renderAntecedentsTable(antecedentsData);
+    } catch (error) {
+        console.error('Error loading antecedents:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">Error al cargar antecedentes</td></tr>';
+        showNotification('Error al cargar antecedentes', 'error');
+    }
+}
+
+// Render Antecedents Table
+function renderAntecedentsTable(antecedents) {
+    const tbody = document.getElementById('antecedentsTableBody');
+
+    if (antecedents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">No hay antecedentes registrados</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = antecedents.map(item => {
+        // Use pre-processed fields if available, otherwise calculate
+        const clientName = item.client_name_search || (item.client
+            ? `${item.client.first_name} ${item.client.last_name}`
+            : 'N/A');
+
+        const typeName = item.type_name_search || (item.type ? item.type.name : 'Desconocido');
+        const document = item.client_document || 'N/A';
+
+        return `
+        <tr>
+            <td>${item.antecedent_id}</td>
+            <td>${clientName}</td>
+            <td>${document}</td>
+            <td>${typeName}</td>
+            <td>${formatDate(item.record_date)}</td>
+             <td>${getAntecedentStatusBadge(item.status)}</td>
+            <td>${item.description || 'N/A'}</td>
+        </tr>
+        `;
+    }).join('');
+}
+
+// Get Antecedent Status Badge
+function getAntecedentStatusBadge(status) {
+    const statusMap = {
+        'A': { text: 'Activo', class: 'active-red' },
+        'Activo': { text: 'Activo', class: 'active-red' },
+        'C': { text: 'Completado', class: 'completed' },
+        'Completado': { text: 'Completado', class: 'completed' }
+    };
+
+    const statusInfo = statusMap[status] || { text: status, class: 'pending' };
+    return `<span class="status-badge ${statusInfo.class}">${statusInfo.text}</span>`;
+}
+
+// ==================== MODAL & ANTECEDENTS CREATION ====================
+
+function setupModalEvents() {
+    const modal = document.getElementById('antecedentModal');
+    const btn = document.getElementById('createAntecedentBtn');
+    const span = document.getElementsByClassName("close-modal")[0];
+    const form = document.getElementById('antecedentForm');
+
+    if (btn) {
+        btn.onclick = function () {
+            modal.style.display = "block";
+            loadAntecedentTypes();
+        }
+    }
+
+    if (span) {
+        span.onclick = function () {
+            modal.style.display = "none";
+        }
+    }
+
+    window.onclick = function (event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    if (form) {
+        form.onsubmit = async function (e) {
+            e.preventDefault();
+            await createAntecedentFromForm();
+        }
+    }
+}
+
+let antecedentTypes = [];
+
+async function loadAntecedentTypes() {
+    const select = document.getElementById('antType');
+    if (!select || select.options.length > 1) return; // Prevent reload if already loaded
+
+    try {
+        const types = await apiRequest('/types');
+        antecedentTypes = types;
+
+        select.innerHTML = '<option value="">Seleccione un tipo...</option>';
+        types.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.type_id;
+            option.textContent = type.name;
+            select.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error('Error loading types:', error);
+        showNotification('Error al cargar tipos de antecedentes', 'error');
+    }
+}
+
+async function createAntecedentFromForm() {
+    const documentInput = document.getElementById('antClientDocument').value;
+    const typeId = document.getElementById('antType').value;
+    const status = document.getElementById('antStatus').value;
+    const description = document.getElementById('antDescription').value;
+
+    if (!documentInput || !typeId || !status || !description) {
+        showNotification('Todos los campos son obligatorios', 'error');
+        return;
+    }
+
+    const payload = {
+        client_document: documentInput,
+        type_id: parseInt(typeId),
+        status: status,
+        description: description
+    };
+
+    try {
+        await apiRequest('/antecedents', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        document.getElementById('antecedentModal').style.display = "none";
+        document.getElementById('antecedentForm').reset();
+        showNotification('Antecedente creado exitosamente', 'success');
+        loadAntecedents(); // Reload table
+
+    } catch (error) {
+        console.error('Error creating antecedent:', error);
+        showNotification('Error al crear antecedente: ' + error.message, 'error');
+    }
 }

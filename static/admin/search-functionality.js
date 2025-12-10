@@ -33,6 +33,14 @@ function setupSearch() {
             filterTable('alertsTableBody', e.target.value, alertsData);
         });
     }
+
+    // Antecedents search
+    const searchAntecedents = document.getElementById('searchAntecedents');
+    if (searchAntecedents) {
+        searchAntecedents.addEventListener('input', (e) => {
+            filterTable('antecedentsTableBody', e.target.value, antecedentsData);
+        });
+    }
 }
 
 function filterTable(tableBodyId, searchTerm, data) {
@@ -52,6 +60,9 @@ function filterTable(tableBodyId, searchTerm, data) {
                 break;
             case 'alertsTableBody':
                 renderAlertsTable(data);
+                break;
+            case 'antecedentsTableBody':
+                renderAntecedentsTable(data);
                 break;
         }
         return;
@@ -77,6 +88,9 @@ function filterTable(tableBodyId, searchTerm, data) {
             break;
         case 'alertsTableBody':
             renderAlertsTable(filtered);
+            break;
+        case 'antecedentsTableBody':
+            renderAntecedentsTable(filtered);
             break;
     }
 }

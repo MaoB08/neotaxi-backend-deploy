@@ -38,7 +38,7 @@ class ActiveTrip(BaseModel):
 
 @router.get("")
 async def get_all_trips():
-    """Obtener todos los viajes con nombres de barrios"""
+    """Obtener todos los viajes con nombres de barrios y calificación"""
     try:
         # Obtener todos los viajes
         trips_response = supabase.table("trip").select("*").order("trip_id", desc=True).execute()
@@ -53,8 +53,20 @@ async def get_all_trips():
         # Obtener todos los barrios para hacer el mapeo
         neighborhoods_response = supabase.table("neighborhood").select("neighborhood_id, name").execute()
         neighborhoods_map = {n['neighborhood_id']: n['name'] for n in neighborhoods_response.data}
-        
-        # Procesar cada viaje para agregar nombres de barrios
+
+        # Obtener ids de los viajes para buscar sus calificaciones
+        trip_ids = [t['trip_id'] for t in trips_response.data if 'trip_id' in t]
+        if not trip_ids and trips_response.data and 'id' in trips_response.data[0]:
+             trip_ids = [t['id'] for t in trips_response.data]
+
+        ratings_map = {}
+        if trip_ids:
+            ratings_response = supabase.table("rating").select("*").in_("trip_id", trip_ids).execute()
+            # Mapear trip_id -> rating info
+            for r in ratings_response.data:
+                ratings_map[r['trip_id']] = r
+
+        # Procesar cada viaje para agregar nombres de barrios y calificación
         trips = []
         for trip in trips_response.data:
             trip_data = {**trip}
@@ -76,6 +88,13 @@ async def get_all_trips():
                 trip_data['destination_neighborhood'] = neighborhoods_map[destination_id]
             else:
                 trip_data['destination_neighborhood'] = 'N/A'
+
+            # Agregar calificación
+            current_trip_id = trip_data.get('trip_id')
+            if current_trip_id and current_trip_id in ratings_map:
+                trip_data['rating'] = ratings_map[current_trip_id].get('score')
+            else:
+                trip_data['rating'] = None # O 'N/A' si prefieren string, pero None es mejor para lógica
             
             trips.append(trip_data)
         
