@@ -37,7 +37,7 @@ class ActiveTrip(BaseModel):
 # ==================== ENDPOINTS ====================
 
 @router.get("")
-async def get_all_trips():
+def get_all_trips():
     """Obtener todos los viajes con nombres de barrios y calificación"""
     try:
         # Obtener todos los viajes
@@ -107,7 +107,7 @@ async def get_all_trips():
         )
 
 @router.get("/client/{client_document}")
-async def get_trips_by_client(client_document: str):
+def get_trips_by_client(client_document: str):
     """Obtener viajes de un cliente"""
     try:
         response = supabase.table("trip").select("*").eq("client_document", client_document).order("trip_id", desc=True).execute()
@@ -120,7 +120,7 @@ async def get_trips_by_client(client_document: str):
         )
 
 @router.get("/driver/{driver_document}")
-async def get_trips_by_driver(driver_document: str):
+def get_trips_by_driver(driver_document: str):
     """Obtener viajes de un conductor con nombres de barrios"""
     try:
         # Obtener viajes del conductor
@@ -167,7 +167,7 @@ async def get_trips_by_driver(driver_document: str):
         )
 
 @router.get("/active")
-async def get_active_trips():
+def get_active_trips():
     """Obtener viajes activos (status = 'N')"""
     try:
         response = supabase.table("trip").select("*").eq("status", "N").execute()
@@ -180,7 +180,7 @@ async def get_active_trips():
         )
 
 @router.post("", response_model=TripResponse)
-async def create_trip(trip: TripRequest):
+def create_trip(trip: TripRequest):
     """Crear nuevo viaje con origen y destino"""
     try:
         trip_data = {
@@ -214,7 +214,7 @@ async def create_trip(trip: TripRequest):
         )
 
 @router.put("/{trip_id}/finish")
-async def finish_trip(trip_id: int):
+def finish_trip(trip_id: int):
     """Finalizar viaje"""
     try:
         update_data = {
@@ -241,7 +241,7 @@ async def finish_trip(trip_id: int):
         )
 
 @router.get("/{trip_id}")
-async def get_trip_by_id(trip_id: int):
+def get_trip_by_id(trip_id: int):
     """Obtener viaje por ID"""
     try:
         response = supabase.table("trip").select("*").eq("trip_id", trip_id).execute()
@@ -263,7 +263,7 @@ async def get_trip_by_id(trip_id: int):
         )
 
 @router.delete("/{trip_id}")
-async def delete_trip(trip_id: int):
+def delete_trip(trip_id: int):
     """Eliminar un viaje por ID (y sus pagos asociados)"""
     try:
         # 1. Eliminar pagos y calificaciones asociados (Cascade manual)
@@ -308,7 +308,7 @@ async def delete_trip(trip_id: int):
         )
 
 @router.get("/health")
-async def health_check():
+def health_check():
     """Health check para viajes"""
     return {
         "status": "ok",

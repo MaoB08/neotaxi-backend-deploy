@@ -10,7 +10,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/{document}", response_model=ClientResponse)
-async def get_client(document: str):
+def get_client(document: str):
     """Obtener información de un cliente por documento"""
     try:
         response = supabase.table("client").select("*").eq("document", document).execute()
@@ -32,7 +32,7 @@ async def get_client(document: str):
         )
 
 @router.put("/{document}", response_model=ApiResponse)
-async def update_client(document: str, data: ClientUpdate):
+def update_client(document: str, data: ClientUpdate):
     """Actualizar información de un cliente"""
     try:
         # Preparar datos para actualizar (solo campos no nulos)
@@ -66,7 +66,7 @@ async def update_client(document: str, data: ClientUpdate):
         )
 
 @router.delete("/{document}", response_model=ApiResponse)
-async def delete_client(document: str):
+def delete_client(document: str):
     """Eliminar un cliente"""
     try:
         # Eliminar de CLIENT (esto también eliminará de USER por CASCADE)
@@ -92,7 +92,7 @@ async def delete_client(document: str):
         )
 
 @router.get("")
-async def list_clients():
+def list_clients():
     """Listar todos los clientes"""
     try:
         response = supabase.table("client").select("*").execute()

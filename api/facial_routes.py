@@ -19,15 +19,15 @@ from core.database import supabase
 router = APIRouter(tags=["Facial Recognition"])
 
 # Threshold de similitud (distancia euclidiana máxima permitida)
-# Basado en pruebas con emulador:
-# - Misma persona: ~1.7
-# - Persona diferente: ~7.9
-# Threshold óptimo: 2.5 (permite misma persona, rechaza diferentes)
-SIMILARITY_THRESHOLD = 4.5
+# Basado en pruebas con dispositivo real:
+# - Misma persona (ideal): ~1.7 a 3.5
+# - Persona diferente: ~7.9 o superior
+# Threshold óptimo: 6.0 (permite iluminación natural y ángulos, rechaza diferentes)
+SIMILARITY_THRESHOLD = 6.0
 
 
 @router.get("/test")
-async def test_facial():
+def test_facial():
     """Endpoint de prueba"""
     return {
         "success": True,
@@ -37,7 +37,7 @@ async def test_facial():
 
 
 @router.post("/register")
-async def register_user_face(
+def register_user_face(
     user_document: str = Form(...),
     user_type: str = Form(...),
     image: UploadFile = File(...)
@@ -73,7 +73,7 @@ async def register_user_face(
             )
         
         # Guardar imagen temporalmente
-        contents = await image.read()
+        contents = image.file.read()
         with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
             tmp.write(contents)
             tmp_path = tmp.name
@@ -145,7 +145,7 @@ async def register_user_face(
 
 
 @router.post("/verify")
-async def verify_user_face(
+def verify_user_face(
     user_document: str = Form(...),
     user_type: str = Form("client"),
     image: UploadFile = File(...),
@@ -167,7 +167,7 @@ async def verify_user_face(
         print(f"🔍 Verificando rostro para {user_type}: {user_document}")
         
         # Guardar imagen
-        contents = await image.read()
+        contents = image.file.read()
         with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
             tmp.write(contents)
             tmp_path = tmp.name
@@ -212,8 +212,15 @@ async def verify_user_face(
         
         stored_embedding = np.array(json.loads(result.data[0]["encoding"]))
         distance = float(np.linalg.norm(stored_embedding - captured_embedding))
-        confidence = max(0, min(100, (1 - (distance / 10)) * 100))
         is_match = distance <= SIMILARITY_THRESHOLD
+        
+        # Calcular porcentaje de confianza ajustado a la percepción humana
+        if distance <= SIMILARITY_THRESHOLD:
+            # Rango 0 -> SIMILARITY_THRESHOLD se mapea a 100% -> 80%
+            confidence = 100 - (distance / SIMILARITY_THRESHOLD) * 20
+        else:
+            # Rango SIMILARITY_THRESHOLD -> 12 se mapea a 80% -> 0%
+            confidence = max(0, 80 - ((distance - SIMILARITY_THRESHOLD) / (12 - SIMILARITY_THRESHOLD)) * 80)
         
         # DEBUG: Mostrar valores para diagnóstico
         print(f"🔍 DEBUG - Distance: {distance:.4f}, Threshold: {SIMILARITY_THRESHOLD}, Confidence: {confidence:.2f}%, Match: {is_match}")
@@ -241,7 +248,7 @@ async def verify_user_face(
 
 
 @router.get("/check/{user_document}")
-async def check_registration(user_document: str, user_type: str = "client"):
+def check_registration(user_document: str, user_type: str = "client"):
     """Verifica si tiene registro facial"""
     try:
         # Validar user_type

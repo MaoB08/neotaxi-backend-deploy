@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # ==================== NEIGHBORHOODS ====================
 
 @router.get("/neighborhoods")
-async def get_neighborhoods():
+def get_neighborhoods():
     """Obtener todos los barrios"""
     try:
         response = supabase.table("neighborhood").select("*").execute()
@@ -26,7 +26,7 @@ async def get_neighborhoods():
 # ==================== VEHICLES ====================
 
 @router.get("/vehicles")
-async def get_vehicles():
+def get_vehicles():
     """Obtener todos los vehículos"""
     try:
         response = supabase.table("vehicle").select("*").execute()
@@ -36,7 +36,7 @@ async def get_vehicles():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/vehicles/available")
-async def get_available_vehicles():
+def get_available_vehicles():
     """Obtener vehículos disponibles (con conductor activo)"""
     try:
         response = supabase.table("driver_vehicle")\
@@ -49,7 +49,7 @@ async def get_available_vehicles():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/vehicles/driver/{driver_document}")
-async def get_driver_vehicles(driver_document: str):
+def get_driver_vehicles(driver_document: str):
     """Obtener vehículos de un conductor específico"""
     try:
         response = supabase.table("driver_vehicle")\
@@ -65,7 +65,7 @@ async def get_driver_vehicles(driver_document: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/methods")
-async def get_payment_methods():
+def get_payment_methods():
     """Obtener métodos de pago"""
     try:
         response = supabase.table("method").select("*").execute()
@@ -77,7 +77,7 @@ async def get_payment_methods():
 # ==================== RATINGS ====================
 
 @router.get("/ratings/trip/{trip_id}")
-async def get_rating_by_trip(trip_id: int):
+def get_rating_by_trip(trip_id: int):
     """Obtener calificación de un viaje"""
     try:
         response = supabase.table("rating")\
@@ -95,7 +95,7 @@ class RatingCreate(BaseModel):
     comment: Optional[str] = None
 
 @router.post("/ratings")
-async def create_rating(rating: RatingCreate):
+def create_rating(rating: RatingCreate):
     """Crear calificación para un viaje"""
     try:
         if rating.score < 1 or rating.score > 5:
@@ -115,7 +115,7 @@ async def create_rating(rating: RatingCreate):
 # ==================== INCIDENTS ====================
 
 @router.get("/incidents")
-async def get_incidents():
+def get_incidents():
     """Obtener todos los incidentes"""
     try:
         response = supabase.table("incident").select("*, trip(*)").execute()
@@ -125,7 +125,7 @@ async def get_incidents():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/incidents/trip/{trip_id}")
-async def get_incidents_by_trip(trip_id: int):
+def get_incidents_by_trip(trip_id: int):
     """Obtener incidentes de un viaje"""
     try:
         response = supabase.table("incident")\
@@ -140,7 +140,7 @@ async def get_incidents_by_trip(trip_id: int):
 # ==================== ALERTS ====================
 
 @router.get("/alerts")
-async def get_alerts():
+def get_alerts():
     """Obtener todas las alertas"""
     try:
         # 1. Obtener alertas con antecedente (incluir trip_id explícitamente)
@@ -185,7 +185,7 @@ async def get_alerts():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/alerts/level/{level}")
-async def get_alerts_by_level(level: int):
+def get_alerts_by_level(level: int):
     """Obtener alertas por nivel de prioridad"""
     try:
         response = supabase.table("alert")\
@@ -204,7 +204,7 @@ class AlertCreate(BaseModel):
     trip_id: int  # ID del viaje activo
 
 @router.post("/alerts")
-async def create_alert(alert: AlertCreate):
+def create_alert(alert: AlertCreate):
     """Crear nueva alerta (desde conductor)"""
     try:
         # Validar nivel (1-5)
@@ -287,7 +287,7 @@ async def create_alert(alert: AlertCreate):
 # ==================== ANTECEDENTS ====================
 
 @router.get("/antecedents")
-async def get_antecedents():
+def get_antecedents():
     """Obtener todos los antecedentes"""
     try:
         response = supabase.table("antecedent")\
@@ -299,7 +299,7 @@ async def get_antecedents():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/antecedents/client/{document}")
-async def get_antecedents_by_client(document: str):
+def get_antecedents_by_client(document: str):
     """Obtener antecedentes de un cliente"""
     try:
         response = supabase.table("antecedent")\
@@ -312,7 +312,7 @@ async def get_antecedents_by_client(document: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/types")
-async def get_antecedent_types():
+def get_antecedent_types():
     """Obtener tipos de antecedentes"""
     try:
         response = supabase.table("type").select("*").execute()
@@ -328,7 +328,7 @@ class AntecedentCreate(BaseModel):
     client_document: str
 
 @router.post("/antecedents")
-async def create_antecedent(antecedent: AntecedentCreate):
+def create_antecedent(antecedent: AntecedentCreate):
     """Crear nuevo antecedente"""
     try:
         # 1. Validar que el cliente exista
@@ -369,7 +369,7 @@ async def create_antecedent(antecedent: AntecedentCreate):
 # ==================== BIOMETRIC ====================
 
 @router.get("/biometric/client/{document}")
-async def get_biometric_records(document: str):
+def get_biometric_records(document: str):
     """Obtener registros biométricos de un cliente"""
     try:
         response = supabase.table("biometric_record")\
@@ -385,7 +385,7 @@ async def get_biometric_records(document: str):
 # ==================== STATISTICS ====================
 
 @router.get("/stats/overview")
-async def get_overview_stats():
+def get_overview_stats():
     """Obtener estadísticas generales del sistema"""
     try:
         # Contar registros en diferentes tablas
