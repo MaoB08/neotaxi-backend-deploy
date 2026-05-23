@@ -130,6 +130,7 @@ async def get_all_trips(
     - Paginación: range(skip, skip+limit-1) — scroll infinito desde Android
     - Caché de barrios: fallback en memoria si el join falla
     """
+
     try:
         # ── Una sola consulta con joins ───────────────────────────────────────
         response = (

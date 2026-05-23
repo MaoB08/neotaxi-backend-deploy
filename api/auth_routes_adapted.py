@@ -54,7 +54,7 @@ class RegisterResponse(BaseModel):
 # ==================== LOGIN ====================
 
 @router.post("/login", response_model=LoginResponse)
-async def login(credentials: LoginRequest):
+def login(credentials: LoginRequest):
     """
     Login para CLIENT, DRIVER o USER (admin)
     """
@@ -185,7 +185,7 @@ async def login(credentials: LoginRequest):
 # ==================== LOGIN ADMIN (PANEL WEB) ====================
 
 @router.post("/login-admin", response_model=LoginResponse)
-async def login_admin(credentials: LoginRequest):
+def login_admin(credentials: LoginRequest):
     """
     Login exclusivo para administradores desde el panel web
     """
@@ -257,7 +257,7 @@ async def login_admin(credentials: LoginRequest):
 # ==================== REGISTRO DE CLIENTE ====================
 
 @router.post("/register/client", response_model=RegisterResponse)
-async def register_client(data: RegisterClientRequest):
+def register_client(data: RegisterClientRequest):
     """
     Registrar nuevo cliente
     """
@@ -345,7 +345,7 @@ async def register_client(data: RegisterClientRequest):
 # ==================== REGISTRO DE CONDUCTOR ====================
 
 @router.post("/register/driver", response_model=RegisterResponse)
-async def register_driver(data: RegisterDriverRequest):
+def register_driver(data: RegisterDriverRequest):
     """
     Registrar nuevo conductor (estado PENDING 'P')
     """
@@ -435,7 +435,7 @@ async def register_driver(data: RegisterDriverRequest):
 # ==================== VERIFICAR TOKEN ====================
 
 @router.post("/verify-token")
-async def verify_token(token: str):
+def verify_token(token: str):
     """
     Verificar si un token JWT es válido
     """
@@ -456,7 +456,7 @@ async def verify_token(token: str):
 # ==================== HEALTH CHECK ====================
 
 @router.get("/health")
-async def health_check():
+def health_check():
     """Verificar que el servicio está funcionando"""
     return {
         "status": "ok",

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # ==================== LOGIN ====================
 
 @router.post("/login", response_model=LoginResponse)
-async def login(credentials: LoginRequest):
+def login(credentials: LoginRequest):
     """
     Login unificado para CLIENT, DRIVER y ADMIN
     """
@@ -109,7 +109,7 @@ async def login(credentials: LoginRequest):
 # ==================== REGISTRO DE CLIENTE ====================
 
 @router.post("/register/client", response_model=RegisterResponse)
-async def register_client(data: RegisterClientRequest):
+def register_client(data: RegisterClientRequest):
     """
     Registrar nuevo cliente
     """
@@ -215,7 +215,7 @@ async def register_client(data: RegisterClientRequest):
 # ==================== REGISTRO DE CONDUCTOR ====================
 
 @router.post("/register/driver", response_model=RegisterResponse)
-async def register_driver(data: RegisterDriverRequest):
+def register_driver(data: RegisterDriverRequest):
     """
     Registrar nuevo conductor (estado PENDING)
     """
@@ -322,7 +322,7 @@ async def register_driver(data: RegisterDriverRequest):
 # ==================== VERIFICAR TOKEN ====================
 
 @router.post("/verify-token", response_model=TokenVerificationResponse)
-async def verify_token(request: TokenVerificationRequest):
+def verify_token(request: TokenVerificationRequest):
     """
     Verificar si un token JWT es válido
     """
@@ -344,7 +344,7 @@ async def verify_token(request: TokenVerificationRequest):
 # ==================== HEALTH CHECK ====================
 
 @router.get("/health")
-async def health_check():
+def health_check():
     """Verificar que el servicio de autenticación está funcionando"""
     return {
         "status": "ok",

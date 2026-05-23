@@ -10,7 +10,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/{document}", response_model=DriverResponse)
-async def get_driver(document: str):
+def get_driver(document: str):
     """Obtener información de un conductor por documento"""
     try:
         response = supabase.table("driver").select("*").eq("document", document).execute()
@@ -32,7 +32,7 @@ async def get_driver(document: str):
         )
 
 @router.put("/{document}", response_model=ApiResponse)
-async def update_driver(document: str, data: DriverUpdate):
+def update_driver(document: str, data: DriverUpdate):
     """Actualizar información de un conductor"""
     try:
         update_data = {k: v for k, v in data.dict().items() if v is not None}
@@ -65,7 +65,7 @@ async def update_driver(document: str, data: DriverUpdate):
         )
 
 @router.post("/{document}/approve", response_model=ApiResponse)
-async def approve_driver(document: str, approval: DriverApproval):
+def approve_driver(document: str, approval: DriverApproval):
     """Aprobar, rechazar o suspender un conductor"""
     try:
         # Mapa de estados para convertir a CHAR(1) compatible con la BD
@@ -133,7 +133,7 @@ async def approve_driver(document: str, approval: DriverApproval):
         )
 
 @router.get("")
-async def list_drivers(status_filter: str = None):
+def list_drivers(status_filter: str = None):
     """Listar conductores (opcionalmente filtrados por estado)"""
     try:
         query = supabase.table("driver").select("*")
@@ -151,7 +151,7 @@ async def list_drivers(status_filter: str = None):
         )
 
 @router.get("/pending/list", response_model=list[DriverResponse])
-async def list_pending_drivers():
+def list_pending_drivers():
     """Listar conductores pendientes de aprobación"""
     try:
         response = supabase.table("driver").select("*").eq("status", "PENDING").execute()
@@ -164,7 +164,7 @@ async def list_pending_drivers():
         )
 
 @router.delete("/{document}", response_model=ApiResponse)
-async def delete_driver(document: str):
+def delete_driver(document: str):
     """Eliminar un conductor"""
     try:
         response = supabase.table("driver").delete().eq("document", document).execute()
