@@ -8,6 +8,14 @@ from typing import Optional, List
 from datetime import datetime
 import logging
 
+# ── Caché en memoria para tablas estáticas ────────────────────────────────────
+from utils.cache import (
+    neighborhoods_cache,
+    antecedent_types_cache,
+    payment_methods_cache,
+    get_or_fetch,
+)
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -15,13 +23,28 @@ logger = logging.getLogger(__name__)
 
 @router.get("/neighborhoods")
 async def get_neighborhoods():
-    """Obtener todos los barrios"""
+    """
+    Obtener todos los barrios.
+
+    Optimización: los barrios se cachean en memoria 60 minutos.
+    Supabase solo se consulta cuando el caché expira o se invalida.
+    """
     try:
-        response = supabase.table("neighborhood").select("*").execute()
-        return response.data
+        data = get_or_fetch(
+            neighborhoods_cache,
+            lambda: supabase.table("neighborhood").select("*").execute().data or [],
+        )
+        return data
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error al obtener barrios: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/neighborhoods/cache/invalidate", status_code=200)
+async def invalidate_neighborhoods_cache():
+    """Invalida manualmente el caché de barrios (útil tras agregar nuevos barrios)."""
+    neighborhoods_cache.invalidate()
+    return {"success": True, "message": "Caché de barrios invalidado correctamente"}
 
 # ==================== VEHICLES ====================
 
@@ -66,12 +89,19 @@ async def get_driver_vehicles(driver_document: str):
 
 @router.get("/methods")
 async def get_payment_methods():
-    """Obtener métodos de pago"""
+    """
+    Obtener métodos de pago.
+
+    Optimización: cacheados en memoria 120 minutos (tabla estática).
+    """
     try:
-        response = supabase.table("method").select("*").execute()
-        return response.data
+        data = get_or_fetch(
+            payment_methods_cache,
+            lambda: supabase.table("method").select("*").execute().data or [],
+        )
+        return data
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error al obtener métodos de pago: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==================== RATINGS ====================
@@ -313,12 +343,19 @@ async def get_antecedents_by_client(document: str):
 
 @router.get("/types")
 async def get_antecedent_types():
-    """Obtener tipos de antecedentes"""
+    """
+    Obtener tipos de antecedentes.
+
+    Optimización: cacheados en memoria 120 minutos (catálogo estático).
+    """
     try:
-        response = supabase.table("type").select("*").execute()
-        return response.data
+        data = get_or_fetch(
+            antecedent_types_cache,
+            lambda: supabase.table("type").select("*").execute().data or [],
+        )
+        return data
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error al obtener tipos de antecedentes: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 class AntecedentCreate(BaseModel):
@@ -386,20 +423,32 @@ async def get_biometric_records(document: str):
 
 @router.get("/stats/overview")
 async def get_overview_stats():
-    """Obtener estadísticas generales del sistema"""
+    """
+    Obtener estadísticas generales del sistema.
+
+    Optimización: usa count="exact" con head=True para que Supabase
+    devuelva solo el conteo sin cargar filas en memoria (antes traía
+    todos los registros solo para contar con len()).
+    """
     try:
-        # Contar registros en diferentes tablas
-        clients = supabase.table("client").select("*", count="exact").execute()
-        drivers = supabase.table("driver").select("*", count="exact").execute()
-        trips = supabase.table("trip").select("*", count="exact").execute()
-        active_trips = supabase.table("trip").select("*", count="exact").eq("status", "N").execute()
-        
+        # head=True → solo devuelve el header con el conteo, sin rows
+        clients = supabase.table("client").select("*", count="exact").limit(0).execute()
+        drivers = supabase.table("driver").select("*", count="exact").limit(0).execute()
+        trips = supabase.table("trip").select("*", count="exact").limit(0).execute()
+        active_trips = (
+            supabase.table("trip")
+            .select("*", count="exact")
+            .eq("status", "N")
+            .limit(0)
+            .execute()
+        )
+
         return {
-            "total_clients": len(clients.data) if clients.data else 0,
-            "total_drivers": len(drivers.data) if drivers.data else 0,
-            "total_trips": len(trips.data) if trips.data else 0,
-            "active_trips": len(active_trips.data) if active_trips.data else 0
+            "total_clients": clients.count or 0,
+            "total_drivers": drivers.count or 0,
+            "total_trips": trips.count or 0,
+            "active_trips": active_trips.count or 0,
         }
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error al obtener estadísticas: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
