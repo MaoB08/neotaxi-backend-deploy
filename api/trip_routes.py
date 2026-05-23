@@ -117,7 +117,7 @@ def _normalize_trip(trip: dict) -> dict:
 
 # ==================== ENDPOINTS ====================
 
-@router.get("", response_model=PaginatedTripsResponse)
+@router.get("", response_model=List[dict])
 async def get_all_trips(
     skip: int = Query(default=0, ge=0, description="Número de registros a omitir (offset)"),
     limit: int = Query(default=20, ge=1, le=MAX_PAGE_SIZE, description="Cantidad de registros a devolver"),
@@ -146,13 +146,7 @@ async def get_all_trips(
 
         logger.info(f"📄 get_all_trips → skip={skip}, limit={limit}, total={total}, devueltos={len(trips)}")
 
-        return PaginatedTripsResponse(
-            data=trips,
-            total=total,
-            skip=skip,
-            limit=limit,
-            has_more=(skip + limit) < total,
-        )
+        return trips
 
     except Exception as e:
         logger.error(f"Error al obtener viajes: {str(e)}")
@@ -162,7 +156,7 @@ async def get_all_trips(
         )
 
 
-@router.get("/client/{client_document}")
+@router.get("/client/{client_document}", response_model=List[dict])
 async def get_trips_by_client(
     client_document: str,
     skip: int = Query(default=0, ge=0, description="Offset para paginación"),
@@ -189,13 +183,7 @@ async def get_trips_by_client(
 
         logger.info(f"📄 get_trips_by_client [{client_document}] → devueltos={len(trips)}, total={total}")
 
-        return PaginatedTripsResponse(
-            data=trips,
-            total=total,
-            skip=skip,
-            limit=limit,
-            has_more=(skip + limit) < total,
-        )
+        return trips
 
     except Exception as e:
         logger.error(f"Error al obtener viajes del cliente: {str(e)}")
@@ -205,7 +193,7 @@ async def get_trips_by_client(
         )
 
 
-@router.get("/driver/{driver_document}")
+@router.get("/driver/{driver_document}", response_model=List[dict])
 async def get_trips_by_driver(
     driver_document: str,
     skip: int = Query(default=0, ge=0, description="Offset para paginación"),
@@ -232,13 +220,7 @@ async def get_trips_by_driver(
 
         logger.info(f"📄 get_trips_by_driver [{driver_document}] → devueltos={len(trips)}, total={total}")
 
-        return PaginatedTripsResponse(
-            data=trips,
-            total=total,
-            skip=skip,
-            limit=limit,
-            has_more=(skip + limit) < total,
-        )
+        return trips
 
     except Exception as e:
         logger.error(f"Error al obtener viajes del conductor: {str(e)}")
