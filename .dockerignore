@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Archivos grandes / innecesarios
+*.pdf
+*.sql
+check_schema.py
+debug_status.py
+generate_hash.py
+remove_async.py
+create_admin.py
+
+# DeepFace models (se descargan en el build)
+.deepface/
