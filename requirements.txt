@@ -16,3 +16,4 @@ email-validator==2.1.0
 numpy==1.26.4
 Pillow==10.2.0
 deepface==0.0.93
+tf-keras
