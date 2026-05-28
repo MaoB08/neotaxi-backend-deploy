@@ -3,7 +3,7 @@
 # ============================================
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import logging
 
@@ -83,6 +83,11 @@ app.include_router(
 )
 
 # Endpoints raíz
+@app.get("/", include_in_schema=False)
+async def serve_frontend():
+    """Redirige al inicio (login.html) cuando se visita la raíz del sitio"""
+    return RedirectResponse(url="/login.html")
+
 @app.get("/api")
 async def api_root():
     """Endpoint raíz de la API"""
