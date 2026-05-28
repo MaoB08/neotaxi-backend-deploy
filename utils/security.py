@@ -4,23 +4,15 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import jwt
-from passlib.context import CryptContext
+import bcrypt
 from core.config import settings
-
-# Contexto para encriptación de contraseñas
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto",
-    bcrypt__rounds=12,
-    bcrypt__ident="2b"
-)
 
 def hash_password(password: str) -> str:
     """Encriptar contraseña con bcrypt"""
     # Truncar contraseña a 72 bytes si es necesario
     if len(password.encode('utf-8')) > 72:
         password = password[:72]
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verificar contraseña"""
@@ -28,7 +20,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         # Truncar contraseña a 72 bytes si es necesario
         if len(plain_password.encode('utf-8')) > 72:
             plain_password = plain_password[:72]
-        return pwd_context.verify(plain_password, hashed_password)
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
     except Exception as e:
         print(f"Error al verificar contraseña: {str(e)}")
         return False
