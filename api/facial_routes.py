@@ -1,18 +1,18 @@
 # api/facial_routes.py
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-import numpy as np
 import json
 from io import BytesIO
-from PIL import Image
 import tempfile
 import os
 
 try:
+    import numpy as np
+    from PIL import Image
     from deepface import DeepFace
     DEEPFACE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     DEEPFACE_AVAILABLE = False
-    print("⚠️ DeepFace no disponible - instala con: pip install deepface")
+    print(f"⚠️ Módulo facial no disponible ({e}). Instala: pip install deepface numpy Pillow")
 
 from core.database import supabase
 
